@@ -1,0 +1,28 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <script src="interpolation.js"></script>
+  <title>interpolation</title>
+
+  <!--   <link rel="stylesheet" type="text/css" href="style.css">   -->
+
+</head>
+
+<body>
+  <label for="points">Points</label><br>
+  <textarea id="points" name="points" cols="10" rows="10">0, 1
+1, -1
+2, 1
+3, -1
+4, 1
+5, -1
+6, 1
+7, -1</textarea><br><br>
+<label for="n_interp">Number of points for interpolation plot</label><br>
+<input type="text" id="n_interp" value="1000"><br>
+  <button onclick="draw();">interpolate</button><br><br> 
+  <canvas id="plot" width="500" height="500"></canvas>
+</body>
+</html>
