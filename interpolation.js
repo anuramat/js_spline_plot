@@ -1,4 +1,5 @@
 'use strict';
+var last_clicked_point = null;
 
 function transpose(matrix) {
     return matrix[0].map((col, i) => matrix.map(row => row[i]));
@@ -18,6 +19,18 @@ function readPoints() {
     return points
 }
 
+function writePoints(points) {
+    let tr_points = transpose(points);
+    for (let i=0; i<tr_points.length; i++) {
+        for (let j=0; j<tr_points[i].length; j++){
+            tr_points[i][j] = tr_points[i][j].toString();
+        }
+        tr_points[i] = tr_points[i].join(', ');
+    }
+    tr_points = tr_points.join('\n');
+    document.getElementById("points").value = tr_points;
+}
+
 function makeSplines(points) {
     let x = points[0];
     let y = points[1];
@@ -34,26 +47,26 @@ function makeSplines(points) {
     }
     splines[0].c = splines[n - 1].c = 0;
 
-    var alpha = new Array(n - 1).fill(0);
-    var beta = new Array(n - 1).fill(0);
-    for (var i = 1; i < n - 1; ++i) {
-        var hi = x[i] - x[i - 1];
-        var hi1 = x[i + 1] - x[i];
-        var A = hi;
-        var C = 2.0 * (hi + hi1);
-        var B = hi1;
-        var F = 6.0 * ((y[i + 1] - y[i]) / hi1 - (y[i] - y[i - 1]) / hi);
-        var z = (A * alpha[i - 1] + C);
+    let alpha = new Array(n - 1).fill(0);
+    let beta = new Array(n - 1).fill(0);
+    for (let i = 1; i < n - 1; ++i) {
+        let hi = x[i] - x[i - 1];
+        let hi1 = x[i + 1] - x[i];
+        let A = hi;
+        let C = 2.0 * (hi + hi1);
+        let B = hi1;
+        let F = 6.0 * ((y[i + 1] - y[i]) / hi1 - (y[i] - y[i - 1]) / hi);
+        let z = (A * alpha[i - 1] + C);
         alpha[i] = -B / z;
         beta[i] = (F - A * beta[i - 1]) / z;
     }
 
-    for (var i = n - 2; i > 0; --i) {
+    for (let i = n - 2; i > 0; --i) {
         splines[i].c = alpha[i] * splines[i + 1].c + beta[i];
     }
 
-    for (var i = n - 1; i > 0; --i) {
-        var hi = x[i] - x[i - 1];
+    for (let i = n - 1; i > 0; --i) {
+        let hi = x[i] - x[i - 1];
         splines[i].d = (splines[i].c - splines[i - 1].c) / hi;
         splines[i].b = hi * (2.0 * splines[i].c + splines[i - 1].c) / 6.0 + (y[i] - y[i - 1]) / hi;
     }
@@ -62,9 +75,10 @@ function makeSplines(points) {
 }
 
 function interpolate(x, s) {
-    var dx = x - s.x;
+    let dx = x - s.x;
     return s.a + (s.b + (s.c / 2.0 + s.d * dx / 6.0) * dx) * dx;
 }
+let point_circles = []; 
 
 function draw() {
     let points = readPoints();
@@ -79,7 +93,6 @@ function draw() {
     let x_max = Math.max.apply(null, x_data);
     let y_max = Math.max.apply(null, y_data);
 
-    // TODO n_interp make a user defined parameter
     let n_interp = parseFloat(document.getElementById('n_interp').value);
     let x_interp = new Array(n_interp);
     let y_interp = new Array(n_interp);
@@ -92,45 +105,68 @@ function draw() {
         y_interp[i] = interpolate(x_interp[i], splines[cur_spline]);
     }
 
-    // TODO update mins and maxes
+    x_min = Math.min(x_min, Math.min.apply(null, x_interp));
+    y_min = Math.min(y_min, Math.min.apply(null, y_interp));
+    x_max = Math.max(x_max, Math.max.apply(null, x_interp));
+    y_max = Math.max(y_max, Math.max.apply(null, y_interp));
+
+    let size = 500;
+
 
     let canvas = document.getElementById('plot');
-    if (canvas.getContext) {
+    let ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let point_border = 100;
+    // to canvas coordinates
+    let transform_x = x => (x - x_min) * (size - point_border) / (x_max - x_min) + point_border / 2;
+    let transform_y = y => size - (y - y_min) * (size - point_border) / (y_max - y_min) - point_border / 2;
+    // from canvas coordinates
+    let inv_transform_x = x => (x - point_border/2) * (x_max - x_min) / (size - point_border) + x_min;
+    let inv_transform_y = y => -(y - size + point_border/2) *(y_max-y_min) / (size-point_border) + y_min ;
 
-        let ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let point_border = 100;
-        let transform_x = x => (x - x_min) * (canvas.width - point_border) / (x_max - x_min) + point_border / 2;
-        let transform_y = y => canvas.height - (y - y_min) * (canvas.height - point_border) / (y_max - y_min) - point_border / 2;
-        x_data = x_data.map(transform_x);
-        y_data = y_data.map(transform_y);
-        x_interp = x_interp.map(transform_x);
-        y_interp = y_interp.map(transform_y);
-        // border
+    x_data = x_data.map(transform_x);
+    y_data = y_data.map(transform_y);
+    x_interp = x_interp.map(transform_x);
+    y_interp = y_interp.map(transform_y);
+    // border
+
+    // limits
+    ctx.font = "20px Arial";
+    ctx.fillText(x_min.toString()+', '+y_min.toString(), 10, size-10);
+    ctx.fillText(x_max.toString()+', '+y_max.toString(), size-200, 30);
+    ctx.beginPath();
+    let limit_length = 10;
+    ctx.moveTo(point_border/2, size-point_border/2-limit_length);
+    ctx.lineTo(point_border/2, size-point_border/2);
+    ctx.lineTo(point_border/2+limit_length, size-point_border/2);
+    ctx.stroke();
+
+    ctx.moveTo(size-point_border/2-limit_length, point_border/2);
+    ctx.lineTo(size-point_border/2, point_border/2);
+    ctx.lineTo(size-point_border/2, point_border/2+limit_length);
+    ctx.stroke();
+    
+    // points
+    let radius = 3;
+    for (let i = 0; i < x_data.length; i++) {
+        point_circles.push(new Path2D());
+        point_circles[i].arc(x_data[i], y_data[i], radius, 0, 2 * Math.PI, false);
         ctx.fillStyle = 'black';
-        let border_width = 1;
-        let size = 500;
-        ctx.fillRect(0, 0, size, border_width);
-        ctx.fillRect(0, 0, border_width, size);
-        ctx.fillRect(0, size - border_width, size, border_width);
-        ctx.fillRect(size - border_width, 0, border_width, size);
-        // points
-        let radius = 3;
-        for (let i = 0; i < x_data.length; i++) {
-            ctx.beginPath();
-            ctx.arc(x_data[i], y_data[i], radius, 0, 2 * Math.PI, false);
-            ctx.fillStyle = 'black';
-            ctx.fill();
-        }
-        // interpolation
-        ctx.beginPath();
-        ctx.moveTo(x_interp[0], y_interp[0]);
-        for (let i = 1; i < n_interp; i++) {
-
-            ctx.lineTo(x_interp[i], y_interp[i]);
-        }
-        ctx.stroke();
-
-
+        ctx.fill(point_circles[i]);
     }
+    // interpolation
+    ctx.beginPath();
+    ctx.moveTo(x_interp[0], y_interp[0]);
+    for (let i = 1; i < n_interp; i++) {
+
+        ctx.lineTo(x_interp[i], y_interp[i]);
+    }
+    ctx.stroke();
+
+
+
+
+
+
+
 }
