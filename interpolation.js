@@ -9,6 +9,9 @@ var transform_x;
 var transform_y;
 var inv_transform_x;
 var inv_transform_y;
+var radius = 6;
+var x_data = [];
+var y_data = [];
 draw(points, splines);
 
 function transpose(matrix) {
@@ -19,8 +22,14 @@ function sort_points(points) {
     points.sort((point1, point2) => point1[0] - point2[0]);
 }
 
-function changeColor(path) {
-    // TODO
+function changeColor(old_circle, color) {
+    // TODO 
+    let circle = new Path2D();
+    let x = old_circle.x;
+    let y = old_circle.y;
+    circle.arc(x, y, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = color;
+    ctx.fill(circle);
 }
 
 function readPoints() {
@@ -102,8 +111,8 @@ function draw(points, splines) {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    let x_data = points[0];
-    let y_data = points[1];
+    x_data = points[0];
+    y_data = points[1];
 
     let x_min = Math.min.apply(null, x_data);
     let y_min = Math.min.apply(null, y_data);
@@ -147,6 +156,7 @@ function draw(points, splines) {
 
     // limits
     ctx.font = "20px Arial";
+    ctx.fillStyle = "black"
     ctx.fillText(x_min.toString()+', '+y_min.toString(), 10, size-10);
     ctx.fillText(x_max.toString()+', '+y_max.toString(), size-200, 30);
     ctx.beginPath();
@@ -162,14 +172,7 @@ function draw(points, splines) {
     ctx.stroke();
     
     // points
-    point_circles = [];
-    let radius = 6;
-    for (let i = 0; i < x_data.length; i++) {
-        point_circles.push(new Path2D());
-        point_circles[i].arc(x_data[i], y_data[i], radius, 0, 2 * Math.PI, false);
-        ctx.fillStyle = 'black';
-        ctx.fill(point_circles[i]);
-    }
+    drawCircles(x_data, y_data);
     // interpolation
     ctx.beginPath();
     ctx.moveTo(x_interp[0], y_interp[0]);
@@ -179,6 +182,18 @@ function draw(points, splines) {
     }
     ctx.stroke();
 
+}
+
+function drawCircles() {
+    point_circles = [];
+    for (let i = 0; i < x_data.length; i++) {
+        point_circles.push(new Path2D());
+        point_circles[i].arc(x_data[i], y_data[i], radius, 0, 2 * Math.PI, false);
+        point_circles[i].x = x_data[i];
+        point_circles[i].y = y_data[i];
+        ctx.fillStyle = 'black';
+        ctx.fill(point_circles[i]);
+    }
 }
 
 
@@ -203,10 +218,11 @@ canvas.onmousemove = function(e) {
     }
     else if (circle_idx>=0) {
         document.body.style.cursor = 'grab';
-        changeColor(point_circles[circle_idx]);
+        changeColor(point_circles[circle_idx], 'pink');
     }
     else {
         document.body.style.cursor = 'default';
+        drawCircles(x_data, y_data);
     }
 
 }
@@ -230,13 +246,13 @@ function removePoint(idx) {
 canvas.onclick = function(e) {
     let circle_idx = find_circle(e.layerX, e.layerY);
     if (last_clicked_point>=0) {
-        // TODO move last_clicked_point
         removePoint(circle_idx);
         addPoint(e.layerX, e.layerY);
         last_clicked_point = -1;
     }
     else if (circle_idx>=0) {
         last_clicked_point = circle_idx;
+        changeColor(point_circles[circle_idx], 'red')
     }
 
     else {
