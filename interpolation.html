@@ -21,7 +21,7 @@
 7, 1</textarea><br><br>
 <label for="n_interp">Number of points for interpolation plot</label><br>
 <input type="text" id="n_interp" value="1000"><br>
-  <button onclick="draw(points, splines);">interpolate</button><br><br> 
+  <button onclick="points=readPoints(); splines=makeSplines(points);draw(points, splines);">interpolate</button><br><br> 
   <canvas id="plot" width="1000" height="1000"></canvas>
   <script src="interpolation.js"></script>
 </body>
