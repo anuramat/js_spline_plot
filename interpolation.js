@@ -1,8 +1,26 @@
 'use strict';
-var last_clicked_point = null;
+var point_circles = [];
+var last_clicked_point = -1;
+var canvas = document.getElementById('plot');
+var ctx = canvas.getContext('2d');
+var points = readPoints();
+var splines = makeSplines(points);
+var transform_x;
+var transform_y;
+var inv_transform_x;
+var inv_transform_y;
+draw(points, splines);
 
 function transpose(matrix) {
     return matrix[0].map((col, i) => matrix.map(row => row[i]));
+}
+
+function sort_points(points) {
+    points.sort((point1, point2) => point1[0] - point2[0]);
+}
+
+function changeColor(path) {
+    // TODO
 }
 
 function readPoints() {
@@ -14,8 +32,8 @@ function readPoints() {
             points[i][j] = parseFloat(points[i][j].trim());
         }
     }
-    points.sort((point1, point2) => point1[0] - point2[0]);
     points = transpose(points);
+    sort_points(points);
     return points
 }
 
@@ -78,13 +96,12 @@ function interpolate(x, s) {
     let dx = x - s.x;
     return s.a + (s.b + (s.c / 2.0 + s.d * dx / 6.0) * dx) * dx;
 }
-let point_circles = []; 
+ 
 
-function draw() {
-    let points = readPoints();
-    let splines = makeSplines(points);
-    //myx = new Array(100);
-    //myy = new Array(100);
+function draw(points, splines) {
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     let x_data = points[0];
     let y_data = points[1];
 
@@ -113,16 +130,14 @@ function draw() {
     let size = 500;
 
 
-    let canvas = document.getElementById('plot');
-    let ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     let point_border = 100;
     // to canvas coordinates
-    let transform_x = x => (x - x_min) * (size - point_border) / (x_max - x_min) + point_border / 2;
-    let transform_y = y => size - (y - y_min) * (size - point_border) / (y_max - y_min) - point_border / 2;
+    transform_x = x => (x - x_min) * (size - point_border) / (x_max - x_min) + point_border / 2;
+    transform_y = y => size - (y - y_min) * (size - point_border) / (y_max - y_min) - point_border / 2;
     // from canvas coordinates
-    let inv_transform_x = x => (x - point_border/2) * (x_max - x_min) / (size - point_border) + x_min;
-    let inv_transform_y = y => -(y - size + point_border/2) *(y_max-y_min) / (size-point_border) + y_min ;
+    inv_transform_x = x => (x - point_border/2) * (x_max - x_min) / (size - point_border) + x_min;
+    inv_transform_y = y => -(y - size + point_border/2) *(y_max-y_min) / (size-point_border) + y_min ;
 
     x_data = x_data.map(transform_x);
     y_data = y_data.map(transform_y);
@@ -147,7 +162,8 @@ function draw() {
     ctx.stroke();
     
     // points
-    let radius = 3;
+    point_circles = [];
+    let radius = 6;
     for (let i = 0; i < x_data.length; i++) {
         point_circles.push(new Path2D());
         point_circles[i].arc(x_data[i], y_data[i], radius, 0, 2 * Math.PI, false);
@@ -163,10 +179,70 @@ function draw() {
     }
     ctx.stroke();
 
+}
 
 
+function find_circle(x,y) {
+    for (let i=0; i<point_circles.length; i++) {
+        if (ctx.isPointInPath(point_circles[i], x, y ) ) {
+            return i
+        }
+    }
+    return -1
+}
 
+canvas.onmouseout = function(e) {
+    document.body.style.cursor = 'default';
+}
 
-
+canvas.onmousemove = function(e) {
+    let circle_idx = find_circle(e.layerX, e.layerY);
+    
+    if (last_clicked_point>=0) {
+        document.body.style.cursor = 'crosshair';
+    }
+    else if (circle_idx>=0) {
+        document.body.style.cursor = 'grab';
+        changeColor(point_circles[circle_idx]);
+    }
+    else {
+        document.body.style.cursor = 'default';
+    }
 
 }
+
+function addPoint(x,y) {
+    points[0].push(inv_transform_x(x));
+    points[1].push(inv_transform_y(y));
+    let tr_points = transpose(points);
+    sort_points(tr_points);
+    points = transpose(tr_points);
+    writePoints(points);
+    splines = makeSplines(points);
+    draw(points, splines);
+}
+
+function removePoint(idx) {
+    points[0].splice(idx, 1);
+    points[1].splice(idx, 1);
+}
+
+canvas.onclick = function(e) {
+    let circle_idx = find_circle(e.layerX, e.layerY);
+    if (last_clicked_point>=0) {
+        // TODO move last_clicked_point
+        removePoint(circle_idx);
+        addPoint(e.layerX, e.layerY);
+        last_clicked_point = -1;
+    }
+    else if (circle_idx>=0) {
+        last_clicked_point = circle_idx;
+    }
+
+    else {
+        addPoint(e.layerX, e.layerY);
+    }
+}
+
+
+// TODO make mins and maxes user defined
