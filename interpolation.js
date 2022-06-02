@@ -1,17 +1,18 @@
 'use strict';
-var point_circles = [];
-var last_clicked_point = -1;
-var canvas = document.getElementById('plot');
-var ctx = canvas.getContext('2d');
-var points = readPoints();
-var splines = makeSplines(points);
-var transform_x;
-var transform_y;
-var inv_transform_x;
-var inv_transform_y;
-var radius = 6;
-var x_data = [];
-var y_data = [];
+let point_circles = [];
+let last_clicked_point = -1;
+let canvas = document.getElementById('plot');
+let ctx = canvas.getContext('2d');
+let points = readPoints();
+let splines = makeSplines(points);
+let transform_x;
+let transform_y;
+let inv_transform_x;
+let inv_transform_y;
+let radius = 6;
+let x_data = [];
+let y_data = [];
+
 draw(points, splines);
 
 function transpose(matrix) {
